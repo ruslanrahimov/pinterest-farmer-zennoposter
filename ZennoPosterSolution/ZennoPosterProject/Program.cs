@@ -34,10 +34,15 @@ namespace ZennoPosterProject
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
             Puppeteer page = new Puppeteer(instance, project);
-            string website = project.Variables["website"].Value;
 
-            HtmlElement websiteInput = page.WaitXpath("//input[@id=\"website_url\"]");
-            page.Type(websiteInput, website);
+            IZennoList aboutsList = project.Lists["abouts"];
+
+            int randomAboutIndex = Global.Variables.MainRandom.GetNext(0, aboutsList.Count);
+            string about = aboutsList[randomAboutIndex];
+
+            HtmlElement textArea = page.WaitXpath("//textarea[@id=\"about\"]");
+
+            page.Type(textArea, about);
 
 
 
