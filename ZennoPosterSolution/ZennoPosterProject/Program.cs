@@ -16,7 +16,7 @@ using ZennoLab.CommandCenter;
 using ZennoLab.Emulation;
 using ZennoLab.InterfacesLibrary.ProjectModel;
 using ZennoLab.InterfacesLibrary.ProjectModel.Enums;
-
+using System.Threading;
 
 namespace ZennoPosterProject
 {
@@ -33,19 +33,16 @@ namespace ZennoPosterProject
         /// <returns>Код выполнения скрипта</returns>		
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
-            Puppeteer page = new Puppeteer(instance, project);
+            string accountType = project.Variables["accountType"].Value;
+            string zpprofileName = project.Variables["zpprofileName"].Value;
+            string[] variablesToSave = project.Lists["DefaultVariablesToSave"].ToArray();
+            string tempFilePath = $@"{project.Directory}\src\zpprofiles-temp\{zpprofileName}";
 
-            IZennoList aboutsList = project.Lists["abouts"];
-
-            int randomAboutIndex = Global.Variables.MainRandom.GetNext(0, aboutsList.Count);
-            string about = aboutsList[randomAboutIndex];
-
-            HtmlElement textArea = page.WaitXpath("//textarea[@id=\"about\"]");
-
-            page.Type(textArea, about);
-
-
-
+            if (File.Exists(tempFilePath))
+            {
+                project.Profile.Save($@"{project.Directory}\profiles\ban-{accountType}\{zpprofileName}", false, true, true, true, true, true, true, true, true, variablesToSave);
+                File.Delete(tempFilePath);
+            }
 
             return 0;
         }

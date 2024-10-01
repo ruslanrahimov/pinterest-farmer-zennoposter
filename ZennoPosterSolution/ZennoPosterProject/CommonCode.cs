@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,6 +12,14 @@ using ZennoLab.InterfacesLibrary.ProjectModel;
 
 namespace ZennoPosterProject
 {
+    public enum PinActions
+    {
+        Save, 
+        Go, 
+        Like, 
+        Comment
+    }
+
     public class Log
     {
         private readonly IZennoPosterProjectModel project;
@@ -95,6 +104,19 @@ namespace ZennoPosterProject
             tab.Navigate(url);
             if (tab.IsBusy) tab.WaitDownloading();
         }
+
+        public bool IsPageTextExists(string text)
+        {
+            if (instance.ActiveTab.PageText.Contains(text)) return true;
+
+            return false;
+        }
+        public bool IsDomTextExists(string text)
+        {
+            if (instance.ActiveTab.DomText.Contains(text)) return true;
+
+            return false;
+        }
     }
 
     public class CustomHttpRequset
@@ -148,4 +170,6 @@ namespace ZennoPosterProject
             return ip;
         }
     }
+
+   
 }
