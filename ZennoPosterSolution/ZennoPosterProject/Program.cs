@@ -34,50 +34,59 @@ namespace ZennoPosterProject
         /// <returns>Код выполнения скрипта</returns>		
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
-            //"accountType":"influencer_public_figure_or_celebrity"
 
-            //TODO добавить проверку под бизнес акк
 
-            Log log = new Log(project);
+
+            string gender = project.Variables["gender"].Value;
+
             Puppeteer page = new Puppeteer(instance, project);
 
-            string threadid = project.Variables["threadid"].Value;
+            HtmlElement nextButton = page.WaitXpath("//button[@aria-label=\"Next\"]");
+            page.Click(nextButton);
 
-            if (page.IsDomTextExists("\"name\":\"UserSettingsResource\"") || page.IsDomTextExists("\"accountType\":\"influencer_public_figure_or_celebrity\""))
-            {
-                log.Print($"{threadid}: Проверка на чек пройдена.", "yellow");
-                return true; //TODO replace 1 with true;
-            }
+            // Pick gender 
 
-            log.Print($"{threadid}: Пробую авторизоваться...");
+            HtmlElement genderInput;
 
-            string login = project.Variables["login"].Value;
-            string password = project.Variables["password"].Value;
+            genderInput = gender == "f"
+                ? page.WaitXpath("//input[@name=\"genderOptions\"][@id=\"female\"]")
+                : page.WaitXpath("//input[@name=\"genderOptions\"][@id=\"male\"]");
 
-            HtmlElement loginButton = page.WaitXpath("//div[@data-test-id=\"simple-login-button\"]/button");
-            page.Click(loginButton);
+            page.Click(genderInput);
 
-            HtmlElement emailInput = page.WaitXpath("//input[@id=\"email\"]");
-            HtmlElement passwordInput = page.WaitXpath("//input[@id=\"password\"]");
+            // Pick Geo and Language
+
             HtmlElement submitButton = page.WaitXpath("//button[@type=\"submit\"]");
-
-            page.Type(emailInput, login);
-            Thread.Sleep(1000);
-            page.Type(passwordInput, password);
-            Thread.Sleep(1000);
             page.Click(submitButton);
 
-            try
+            //What are you interested in?
+
+            int pinsPickersCount;
+            int prevPinsPickerIndex = 0;
+            string pinsPickerXPath = "//div[@data-test-id=\"nux-picker-topic\"]/div[@role=\"button\"]";
+
+            page.WaitXpath(pinsPickerXPath);
+
+            HtmlElement pinsPicker;
+            HtmlElementCollection listOfPinsPickers = instance.ActiveTab.FindElementsByXPath(pinsPickerXPath);
+            pinsPickersCount = listOfPinsPickers.Count();
+
+            for (int i = 0; i < 5; i++)
             {
-                page.WaitXpath("//div[@role=\"alertdialog\"]", 20000);
-                log.Print($"{threadid}: Аккаунт забанен.", "red");
-                project.Variables["ban"].Value = "True";
+                int currentPinsPickerIndex = Global.Variables.MainRandom.GetNext(2, pinsPickersCount); 
+
+                if (prevPinsPickerIndex == currentPinsPickerIndex)
+                {
+                    currentPinsPickerIndex--;
+                }
+
+                listOfPinsPickers.Elements[currentPinsPickerIndex].RiseEvent("click", instance.EmulationLevel);
+                prevPinsPickerIndex = currentPinsPickerIndex;
             }
-            catch
-            {
-                log.Print($"{threadid}: Проверка на чек пройдена.", "yellow");
-                return true;
-            }
+
+            submitButton = page.WaitXpath("//button[@type=\"submit\"]");
+            page.Click(submitButton);
+
 
 
 
