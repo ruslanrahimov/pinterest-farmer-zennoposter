@@ -34,62 +34,72 @@ namespace ZennoPosterProject
         /// <returns>Код выполнения скрипта</returns>		
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
+            string accountType = project.Variables["accountType"].Value;
 
-
-
-            string gender = project.Variables["gender"].Value;
-
-            Puppeteer page = new Puppeteer(instance, project);
-
-            HtmlElement nextButton = page.WaitXpath("//button[@aria-label=\"Next\"]");
-            page.Click(nextButton);
-
-            // Pick gender 
-
-            HtmlElement genderInput;
-
-            genderInput = gender == "f"
-                ? page.WaitXpath("//input[@name=\"genderOptions\"][@id=\"female\"]")
-                : page.WaitXpath("//input[@name=\"genderOptions\"][@id=\"male\"]");
-
-            page.Click(genderInput);
-
-            // Pick Geo and Language
-
-            HtmlElement submitButton = page.WaitXpath("//button[@type=\"submit\"]");
-            page.Click(submitButton);
-
-            //What are you interested in?
-
-            int pinsPickersCount;
-            int prevPinsPickerIndex = 0;
-            string pinsPickerXPath = "//div[@data-test-id=\"nux-picker-topic\"]/div[@role=\"button\"]";
-
-            page.WaitXpath(pinsPickerXPath);
-
-            HtmlElement pinsPicker;
-            HtmlElementCollection listOfPinsPickers = instance.ActiveTab.FindElementsByXPath(pinsPickerXPath);
-            pinsPickersCount = listOfPinsPickers.Count();
-
-            for (int i = 0; i < 5; i++)
+            if (accountType == "business")
             {
-                int currentPinsPickerIndex = Global.Variables.MainRandom.GetNext(2, pinsPickersCount); 
+                Puppeteer page = new Puppeteer(instance, project);
+                Log log = new Log(project);
 
-                if (prevPinsPickerIndex == currentPinsPickerIndex)
+                // Получаем и задаем параметры загружаемого файла
+
+                int randomFileIndex;
+                string threadid = project.Variables["threadid"].Value;
+
+                string imagesSourceDirPath = project.Variables["coverImagesDirPath"].Value;
+
+                string[] coverImages = Directory.GetFiles(imagesSourceDirPath, "*.*", SearchOption.AllDirectories);
+
+                if (coverImages.Length == 0)
                 {
-                    currentPinsPickerIndex--;
+                    log.Print($"{threadid}: Папка с фотографиями пуста! Пропускаю данное действие.", "red"); // Реализовать скачивание фотки со стороннего сервиса
+                    return true;
                 }
 
-                listOfPinsPickers.Elements[currentPinsPickerIndex].RiseEvent("click", instance.EmulationLevel);
-                prevPinsPickerIndex = currentPinsPickerIndex;
+                randomFileIndex = Global.Variables.MainRandom.GetNext(0, coverImages.Length);
+
+                string imageSourceFilePath = coverImages[randomFileIndex];
+                string mediaTempDirPath = $@"{imagesSourceDirPath}\media-temp";
+                string tempMediaFileName = $"{Guid.NewGuid().ToString()}{Path.GetExtension(imageSourceFilePath)}";
+                string tempMediaFilePath = $@"{mediaTempDirPath}\{tempMediaFileName}";
+
+                lock (SyncObject)
+                {
+                    if (!Directory.Exists(mediaTempDirPath))
+                    {
+                        Directory.CreateDirectory(mediaTempDirPath);
+                    }
+
+                    File.Copy(imageSourceFilePath, tempMediaFilePath);
+                }
+
+
+                instance.SetFileUploadPolicy("ok", "");
+                instance.SetFilesForUpload(tempMediaFilePath);
+
+
+
+                HtmlElement profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
+                page.Click(profileLink);
+
+                HtmlElement editCoverButton = page.WaitXpath("//div[@data-test-id=\"profile-cover-edit-button\"]/button");
+                page.Click(editCoverButton);
+
+                HtmlElement browse = page.WaitXpath("//input[@id=\"asset-picker-upload\"]");
+                page.Click(browse);
+
+                HtmlElement doneButton = page.WaitXpath("//div[text()=\"Done\"]/../..");
+                page.Click(doneButton);
+
+                //Удаляем временный файл
+                lock (SyncObject)
+                {
+                    if (File.Exists(tempMediaFilePath))
+                    {
+                        File.Delete(tempMediaFilePath);
+                    }
+                }
             }
-
-            submitButton = page.WaitXpath("//button[@type=\"submit\"]");
-            page.Click(submitButton);
-
-
-
-
 
             return 0;
         }
