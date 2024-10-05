@@ -34,27 +34,75 @@ namespace ZennoPosterProject
         /// <returns>Код выполнения скрипта</returns>		
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
-            Puppeteer page = new Puppeteer(instance, project);
-            string businessVertical = project.Variables["businessVertical"].Value;
-            HtmlElement dropdownButton = page.WaitXpath("//input[@id=\"combobox-tags\"]");
+            string boardsCreated = project.Variables["boardsCreated"].Value;
 
-            for (int i = 0; i < 3; i++)
+            if (boardsCreated != "True")
             {
-                page.Click(dropdownButton);
-                page.WaitXpath("//div[@role=\"option\"]");
-                HtmlElementCollection goalOptions = instance.ActiveTab.FindElementsByXPath("//div[@role=\"option\"]");
-                int indexOfOption = Global.Variables.MainRandom.GetNext(1, goalOptions.Count + 1);
-                HtmlElement option = page.WaitXpath($"(//div[@role=\"option\"])[{indexOfOption}]");
-                page.Click(option);
-                Thread.Sleep(2000);
+                Log log = new Log(project);
+                Puppeteer page = new Puppeteer(instance, project);
+                List<string> boardsList = project.Lists["boards"].ToList<string>();
+
+
+                int boardsCount = int.Parse(project.Variables["boardsCount"].Value);
+                int randomIndexOfBoard;
+
+                string boardName;
+                string threadid = project.Variables["threadid"].Value;
+
+                page.GoTo("https://www.pinterest.com");
+
+                HtmlElement profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
+                page.Click(profileLink);
+
+                HtmlElement actionsButton;
+                HtmlElement createNewBoardButton;
+                HtmlElement boardNameInput;
+                HtmlElement submitButton;
+                HtmlElement doneButton;
+
+                for (int i = 0; i < boardsCount; i++)
+                {
+                    // Создаем доски
+                    randomIndexOfBoard = Global.Variables.MainRandom.GetNext(0, boardsList.Count);
+                    boardName = boardsList[randomIndexOfBoard];
+
+                    try
+                    {
+                        actionsButton = page.WaitXpath("//div[@data-test-id=\"boardActionsButton\"]//button");
+                        page.Click(actionsButton);
+
+                        createNewBoardButton = page.WaitXpath("//div[@data-test-id=\"Create board\"]");
+                        page.Click(createNewBoardButton);
+
+                        boardNameInput = page.WaitXpath("//form//input[@type=\"text\"]");
+                        page.Type(boardNameInput, boardName);
+
+                        submitButton = page.WaitXpath("//button[@type=\"submit\"][not(@disabled)]");
+                        page.Click(submitButton);
+
+                        doneButton = page.WaitXpath("//div[@data-test-id=\"done-button\"]/button", 10000);
+                        page.Click(doneButton);
+
+                        profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
+                        page.Click(profileLink);
+
+                    }
+                    catch
+                    {
+                        profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
+                        page.Click(profileLink);
+                    }
+                    finally
+                    {
+                        boardsList = boardsList.Where<string>(x => boardName != x).ToList<string>();
+                    }
+                   
+                }
+
+                project.Variables["boardsCreated"].Value = "True";
+
             }
 
-            HtmlElement selectVertical = page.WaitXpath("//select[@id=\"verticals\"]");
-            selectVertical.SetValue(ZennoPoster.Parser.ParseByXpath(selectVertical.OuterHtml, ".//option", "OuterHtml").ToList().FindIndex(x => x.Contains($@"value=""{businessVertical}""")).ToString(), "None", false);
-            selectVertical.RiseEvent("onchange", "Full");
-
-            HtmlElement doneButton = page.WaitXpath("//div[@data-test-id=\"biz-nux-done-button\"]/button[not(@disabled)]");
-            page.Click(doneButton);
 
 
 
