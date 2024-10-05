@@ -34,78 +34,26 @@ namespace ZennoPosterProject
         /// <returns>Код выполнения скрипта</returns>		
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
-            string boardsCreated = project.Variables["boardsCreated"].Value;
+            string doAddWebsite = project.Variables["doAddWebsite"].Value;
 
-            if (boardsCreated != "True")
+            if(doAddWebsite == "True")
             {
-                Log log = new Log(project);
                 Puppeteer page = new Puppeteer(instance, project);
-                List<string> boardsList = project.Lists["boards"].ToList<string>();
 
+                string accountType = project.Variables["accountType"].Value;
 
-                int boardsCount = int.Parse(project.Variables["boardsCount"].Value);
-                int randomIndexOfBoard;
+                IZennoList websitesList =
+                    accountType == "regular"
+                    ? project.Lists["websitesRegular"]
+                    : project.Lists["websitesBusiness"];
 
-                string boardName;
-                string threadid = project.Variables["threadid"].Value;
+                int randomWebsiteIndex = Global.Variables.MainRandom.GetNext(0, websitesList.Count);
+                string website = websitesList[randomWebsiteIndex];
 
-                page.GoTo("https://www.pinterest.com");
-
-                HtmlElement profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
-                page.Click(profileLink);
-
-                HtmlElement actionsButton;
-                HtmlElement createNewBoardButton;
-                HtmlElement boardNameInput;
-                HtmlElement submitButton;
-                HtmlElement doneButton;
-
-                for (int i = 0; i < boardsCount; i++)
-                {
-                    // Создаем доски
-                    randomIndexOfBoard = Global.Variables.MainRandom.GetNext(0, boardsList.Count);
-                    boardName = boardsList[randomIndexOfBoard];
-
-                    try
-                    {
-                        actionsButton = page.WaitXpath("//div[@data-test-id=\"boardActionsButton\"]//button");
-                        page.Click(actionsButton);
-
-                        createNewBoardButton = page.WaitXpath("//div[@data-test-id=\"Create board\"]");
-                        page.Click(createNewBoardButton);
-
-                        boardNameInput = page.WaitXpath("//form//input[@type=\"text\"]");
-                        page.Type(boardNameInput, boardName);
-
-                        submitButton = page.WaitXpath("//button[@type=\"submit\"][not(@disabled)]");
-                        page.Click(submitButton);
-
-                        doneButton = page.WaitXpath("//div[@data-test-id=\"done-button\"]/button", 10000);
-                        page.Click(doneButton);
-
-                        profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
-                        page.Click(profileLink);
-
-                    }
-                    catch
-                    {
-                        profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
-                        page.Click(profileLink);
-                    }
-                    finally
-                    {
-                        boardsList = boardsList.Where<string>(x => boardName != x).ToList<string>();
-                    }
-                   
-                }
-
-                project.Variables["boardsCreated"].Value = "True";
-
+                HtmlElement websiteInput = page.WaitXpath("//input[@id=\"website_url\"]");
+                page.Type(websiteInput, website);
             }
-
-
-
-
+            
 
 
             return 0;
