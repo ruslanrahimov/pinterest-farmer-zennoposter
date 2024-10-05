@@ -34,72 +34,31 @@ namespace ZennoPosterProject
         /// <returns>Код выполнения скрипта</returns>		
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
-            string accountType = project.Variables["accountType"].Value;
+            Puppeteer page = new Puppeteer(instance, project);
+            string businessVertical = project.Variables["businessVertical"].Value;
+            HtmlElement dropdownButton = page.WaitXpath("//input[@id=\"combobox-tags\"]");
 
-            if (accountType == "business")
+            for (int i = 0; i < 3; i++)
             {
-                Puppeteer page = new Puppeteer(instance, project);
-                Log log = new Log(project);
-
-                // Получаем и задаем параметры загружаемого файла
-
-                int randomFileIndex;
-                string threadid = project.Variables["threadid"].Value;
-
-                string imagesSourceDirPath = project.Variables["coverImagesDirPath"].Value;
-
-                string[] coverImages = Directory.GetFiles(imagesSourceDirPath, "*.*", SearchOption.AllDirectories);
-
-                if (coverImages.Length == 0)
-                {
-                    log.Print($"{threadid}: Папка с фотографиями пуста! Пропускаю данное действие.", "red"); // Реализовать скачивание фотки со стороннего сервиса
-                    return true;
-                }
-
-                randomFileIndex = Global.Variables.MainRandom.GetNext(0, coverImages.Length);
-
-                string imageSourceFilePath = coverImages[randomFileIndex];
-                string mediaTempDirPath = $@"{imagesSourceDirPath}\media-temp";
-                string tempMediaFileName = $"{Guid.NewGuid().ToString()}{Path.GetExtension(imageSourceFilePath)}";
-                string tempMediaFilePath = $@"{mediaTempDirPath}\{tempMediaFileName}";
-
-                lock (SyncObject)
-                {
-                    if (!Directory.Exists(mediaTempDirPath))
-                    {
-                        Directory.CreateDirectory(mediaTempDirPath);
-                    }
-
-                    File.Copy(imageSourceFilePath, tempMediaFilePath);
-                }
-
-
-                instance.SetFileUploadPolicy("ok", "");
-                instance.SetFilesForUpload(tempMediaFilePath);
-
-
-
-                HtmlElement profileLink = page.WaitXpath("//div[@data-test-id=\"header-profile\"]//a");
-                page.Click(profileLink);
-
-                HtmlElement editCoverButton = page.WaitXpath("//div[@data-test-id=\"profile-cover-edit-button\"]/button");
-                page.Click(editCoverButton);
-
-                HtmlElement browse = page.WaitXpath("//input[@id=\"asset-picker-upload\"]");
-                page.Click(browse);
-
-                HtmlElement doneButton = page.WaitXpath("//div[text()=\"Done\"]/../..");
-                page.Click(doneButton);
-
-                //Удаляем временный файл
-                lock (SyncObject)
-                {
-                    if (File.Exists(tempMediaFilePath))
-                    {
-                        File.Delete(tempMediaFilePath);
-                    }
-                }
+                page.Click(dropdownButton);
+                page.WaitXpath("//div[@role=\"option\"]");
+                HtmlElementCollection goalOptions = instance.ActiveTab.FindElementsByXPath("//div[@role=\"option\"]");
+                int indexOfOption = Global.Variables.MainRandom.GetNext(1, goalOptions.Count + 1);
+                HtmlElement option = page.WaitXpath($"(//div[@role=\"option\"])[{indexOfOption}]");
+                page.Click(option);
+                Thread.Sleep(2000);
             }
+
+            HtmlElement selectVertical = page.WaitXpath("//select[@id=\"verticals\"]");
+            selectVertical.SetValue(ZennoPoster.Parser.ParseByXpath(selectVertical.OuterHtml, ".//option", "OuterHtml").ToList().FindIndex(x => x.Contains($@"value=""{businessVertical}""")).ToString(), "None", false);
+            selectVertical.RiseEvent("onchange", "Full");
+
+            HtmlElement doneButton = page.WaitXpath("//div[@data-test-id=\"biz-nux-done-button\"]/button[not(@disabled)]");
+            page.Click(doneButton);
+
+
+
+
 
             return 0;
         }

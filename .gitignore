@@ -10,6 +10,7 @@
 src/*
 !src/
 profiles/
+temp/
 # User-specific files
 *.rsuser
 *.suo
