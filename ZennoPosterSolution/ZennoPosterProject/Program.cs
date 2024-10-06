@@ -34,26 +34,22 @@ namespace ZennoPosterProject
         /// <returns>Код выполнения скрипта</returns>		
         public int Execute(Instance instance, IZennoPosterProjectModel project)
         {
-            string doAddWebsite = project.Variables["doAddWebsite"].Value;
 
-            if(doAddWebsite == "True")
+            string tempMediaFilePath = project.Variables["tempMediaFilePath"].Value;
+
+            //Удаляем временный файл
+            lock (SyncObject)
             {
-                Puppeteer page = new Puppeteer(instance, project);
-
-                string accountType = project.Variables["accountType"].Value;
-
-                IZennoList websitesList =
-                    accountType == "regular"
-                    ? project.Lists["websitesRegular"]
-                    : project.Lists["websitesBusiness"];
-
-                int randomWebsiteIndex = Global.Variables.MainRandom.GetNext(0, websitesList.Count);
-                string website = websitesList[randomWebsiteIndex];
-
-                HtmlElement websiteInput = page.WaitXpath("//input[@id=\"website_url\"]");
-                page.Type(websiteInput, website);
+                if (File.Exists(tempMediaFilePath))
+                {
+                    File.Delete(tempMediaFilePath);
+                }
             }
-            
+
+
+
+
+
 
 
             return 0;
